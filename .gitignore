@@ -1,0 +1,25 @@
+# ---- Python / backend ----
+backend/.venv/
+__pycache__/
+*.pyc
+.env
+*.env
+
+# ---- Node / frontend ----
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ---- Data & model artifacts (large / regenerable) ----
+model/data/*.csv
+model/data/*.zip
+model/data/*.json
+model/artifacts/*.joblib
+model/artifacts/*.json
+!model/artifacts/.gitkeep
+
+# ---- OS / editor ----
+.DS_Store
+.vscode/
+.idea/

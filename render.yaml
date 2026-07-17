@@ -1,0 +1,19 @@
+# Render deployment config for the Greenlight FastAPI backend.
+# Render reads this on connect and provisions the service automatically.
+# The frontend deploys separately on Vercel.
+services:
+  - type: web
+    name: greenlight-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Render injects $PORT; uvicorn must bind to it and to 0.0.0.0.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: ALLOWED_ORIGINS
+        sync: false   # set to the Vercel URL after the frontend deploys
+      - key: ANTHROPIC_API_KEY
+        sync: false   # added on Day 4 for the interpretation layer
