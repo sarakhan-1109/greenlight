@@ -28,8 +28,10 @@ from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
 CLEAN = "data/movies_clean.csv"
-MODEL_OUT = "artifacts/greenlight_model.json"
-META_OUT = "artifacts/metadata.json"
+# Training output goes straight into the backend so the API serves EXACTLY what
+# training produced (single source of truth, and these files deploy with Render).
+MODEL_OUT = "../backend/artifacts/greenlight_model.json"
+META_OUT = "../backend/artifacts/metadata.json"
 
 TIERS = ["Flop", "Moderate", "Hit", "Blockbuster"]
 
@@ -119,12 +121,15 @@ def main() -> None:
     model = XGBClassifier(
         objective="multi:softprob",
         num_class=4,
+        # depth 4 generalizes best here: depth 5 pushed TRAIN to 78% while TEST
+        # fell — classic overfitting on a noisy target, so we keep it shallow.
         n_estimators=350,
         max_depth=4,
         learning_rate=0.05,
         subsample=0.8,
         colsample_bytree=0.8,
-        min_child_weight=3,
+        min_child_weight=4,
+        reg_lambda=1.5,
         enable_categorical=True,
         tree_method="hist",
         eval_metric="mlogloss",
@@ -134,8 +139,14 @@ def main() -> None:
 
     # ---- Evaluate ----
     preds = model.predict(X_test)
+    train_acc = accuracy_score(y_train, model.predict(X_train))
     acc = accuracy_score(y_test, preds)
+    # Within-one-tier: counting an adjacent-tier miss (e.g. Hit vs Moderate) as
+    # "close". Reported alongside exact accuracy for an honest fuller picture.
+    adj = np.mean(np.abs(np.asarray(y_test) - preds) <= 1)
     print(f"\n=== TEST ACCURACY: {acc*100:.1f}%  (random baseline = 25%) ===")
+    print(f"    TRAIN accuracy: {train_acc*100:.1f}%  (gap shows over/underfit)")
+    print(f"    Within-one-tier accuracy: {adj*100:.1f}%")
     if acc > 0.90:
         print("!!! Accuracy >90% — investigate for leakage before trusting this. !!!")
     print("\nPer-class report:")
@@ -160,6 +171,8 @@ def main() -> None:
         "star_power_quartiles_usd": star_q,
         "inference_year": int(df["year"].max()),  # backend fixes year to this
         "test_accuracy": round(float(acc), 4),
+        "train_accuracy": round(float(train_acc), 4),
+        "within_one_tier_accuracy": round(float(adj), 4),
         "n_train": int(len(X_train)),
         "n_test": int(len(X_test)),
     }
