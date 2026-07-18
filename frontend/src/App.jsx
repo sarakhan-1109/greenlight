@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { checkHealth, predict } from "./api";
+import { checkHealth, getMeta, predict } from "./api";
 import "./App.css";
 
-// Dropdown option sources. GENRES is a starter list; on Day 3 it will be
-// aligned to whatever genres the trained model actually knows about.
-const GENRES = [
-  "Action", "Adventure", "Animation", "Comedy", "Crime", "Drama",
-  "Family", "Fantasy", "Horror", "Romance", "Science Fiction", "Thriller",
-];
+// Genres come from the backend (/api/meta) so the dropdown always matches the
+// exact set the model was trained on. This short list is only a fallback shown
+// before that fetch resolves.
+const FALLBACK_GENRES = ["Action", "Comedy", "Drama"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -32,10 +30,15 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [meta, setMeta] = useState(null);
 
-  // On load, ping the backend so the header can honestly show connection state.
+  const genres = meta?.genres ?? FALLBACK_GENRES;
+
+  // On load, ping the backend (for the honest connection badge) and fetch model
+  // metadata (genres, accuracy) so the UI matches the deployed model exactly.
   useEffect(() => {
     checkHealth().then(() => setBackendOk(true)).catch(() => setBackendOk(false));
+    getMeta().then(setMeta).catch(() => setMeta(null));
   }, []);
 
   function update(field, value) {
@@ -85,7 +88,7 @@ export default function App() {
           <label>
             Primary genre
             <select value={form.genre} onChange={(e) => update("genre", e.target.value)}>
-              {GENRES.map((g) => <option key={g} value={g}>{g}</option>)}
+              {genres.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
           </label>
 
@@ -144,8 +147,12 @@ export default function App() {
 
           <div className="factors">
             <h3>What drove this prediction</h3>
-            {result.factors.map((f) => {
-              const pct = Math.min(Math.abs(f.contribution) * 40, 100);
+            {(() => {
+              // Scale bars relative to the strongest factor so the chart is
+              // always well-proportioned regardless of raw SHAP magnitudes.
+              const maxAbs = Math.max(...result.factors.map((f) => Math.abs(f.contribution)), 0.01);
+              return result.factors.map((f) => {
+              const pct = Math.max((Math.abs(f.contribution) / maxAbs) * 100, 2);
               const positive = f.contribution >= 0;
               return (
                 <div className="factor-row" key={f.feature}>
@@ -156,7 +163,8 @@ export default function App() {
                   <span className="factor-val">{positive ? "+" : ""}{f.contribution}</span>
                 </div>
               );
-            })}
+            });
+            })()}
             <p className="hint">Green = pushed the prediction up · Red = pushed it down</p>
           </div>
 
@@ -170,6 +178,15 @@ export default function App() {
 
       <footer className="footer">
         <p>ML predicts the tier · an LLM only explains it · pre-release features only (no data leakage)</p>
+        {meta && (
+          <p className="honesty">
+            Honest accuracy: {Math.round(meta.test_accuracy * 100)}% exact tier
+            {meta.within_one_tier_accuracy
+              ? ` · ${Math.round(meta.within_one_tier_accuracy * 100)}% within one tier`
+              : ""}{" "}
+            (random guess = 25%). Box office is hard to predict — that's the point.
+          </p>
+        )}
       </footer>
     </div>
   );

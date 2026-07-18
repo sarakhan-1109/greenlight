@@ -1,0 +1,61 @@
+{
+  "features": [
+    "budget",
+    "runtime",
+    "release_month",
+    "is_franchise",
+    "year",
+    "genre",
+    "star_power_level"
+  ],
+  "categorical": [
+    "genre"
+  ],
+  "tiers": [
+    "Flop",
+    "Moderate",
+    "Hit",
+    "Blockbuster"
+  ],
+  "genre_options": [
+    "Action",
+    "Adventure",
+    "Animation",
+    "Biography",
+    "Comedy",
+    "Crime",
+    "Drama",
+    "Fantasy",
+    "Horror",
+    "Other"
+  ],
+  "tier_cutoffs_usd": {
+    "Flop": [
+      309.0,
+      10703464.5
+    ],
+    "Moderate": [
+      10703464.5,
+      36787918.5
+    ],
+    "Hit": [
+      36787918.5,
+      112259208.75
+    ],
+    "Blockbuster": [
+      112259208.75,
+      2847246203.0
+    ]
+  },
+  "star_power_quartiles_usd": [
+    26147709.375,
+    66803251.14285714,
+    130384246.02083333
+  ],
+  "inference_year": 2020,
+  "test_accuracy": 0.5009,
+  "train_accuracy": 0.6763,
+  "within_one_tier_accuracy": 0.8978,
+  "n_train": 4344,
+  "n_test": 1086
+}

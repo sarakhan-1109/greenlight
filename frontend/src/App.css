@@ -124,6 +124,7 @@ input[type="range"] { accent-color: var(--accent); }
 /* ---------- Footer ---------- */
 .footer { margin-top: 2rem; text-align: center; }
 .footer p { color: var(--muted); font-size: 0.8rem; }
+.honesty { max-width: 52ch; margin: 0.5rem auto 0; opacity: 0.85; }
 
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; }

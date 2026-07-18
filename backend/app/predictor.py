@@ -1,64 +1,105 @@
 """
-Prediction seam.
+Prediction seam — now backed by the real trained XGBoost model.
 
-TODAY (Day 1): a deterministic *stub* that returns a plausible-looking result so
-the whole frontend->backend pipe can be built and deployed before any ML exists.
+Loads the model + metadata produced by model/train.py once at import, then turns
+a user's pre-release FilmFeatures into:
+  - a predicted tier + confidence + full probability distribution, and
+  - the model's OWN per-feature contributions (XGBoost SHAP values) for the
+    factor-breakdown chart.
 
-DAY 3: this file becomes the only place that loads the trained XGBoost model
-(from model/artifacts/) and turns FilmFeatures into a real prediction plus real
-per-feature contributions. Because the rest of the app only talks to
-`predict()`, swapping the stub for the real model touches nothing else.
+The LLM never runs here. This file is pure ML. See interpreter.py for the note.
 """
+
+import json
+import os
+
+import pandas as pd
+import xgboost as xgb
 
 from .schemas import FactorContribution, FilmFeatures, PredictionResponse, Tier
 
-MODEL_VERSION = "stub-0.1.0"
+_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
+_MODEL_PATH = os.path.join(_HERE, "artifacts", "greenlight_model.json")
+_META_PATH = os.path.join(_HERE, "artifacts", "metadata.json")
+
+with open(_META_PATH) as f:
+    META = json.load(f)
+
+FEATURES: list[str] = META["features"]
+CATEGORICAL: list[str] = META["categorical"]
+GENRE_OPTIONS: list[str] = META["genre_options"]
+TIERS: list[str] = META["tiers"]
+INFERENCE_YEAR: int = META["inference_year"]
+
+MODEL_VERSION = f"xgb-1.0.0 (acc {META['test_accuracy']*100:.0f}%)"
+
+_booster = xgb.Booster()
+_booster.load_model(_MODEL_PATH)
+
+# Human-friendly labels for the factor chart. `year` is excluded because the
+# user can't change it (we fix it to the modern era at inference).
+_FACTOR_LABELS = {
+    "budget": "Budget",
+    "star_power_level": "Star power",
+    "is_franchise": "Franchise",
+    "genre": "Genre",
+    "release_month": "Release timing",
+    "runtime": "Runtime",
+}
+
+
+def _to_frame(features: FilmFeatures) -> pd.DataFrame:
+    """Build the exact one-row feature matrix the model was trained on."""
+    genre = features.genre if features.genre in GENRE_OPTIONS else "Other"
+    row = {
+        "budget": float(features.budget_usd),
+        "runtime": int(features.runtime_min),
+        "release_month": int(features.release_month),
+        "is_franchise": int(features.is_franchise),
+        "year": INFERENCE_YEAR,  # predict "as if released in the modern era"
+        "genre": genre,
+        "star_power_level": int(features.lead_star_power),
+    }
+    X = pd.DataFrame([row])[FEATURES]
+    # Recreate the SAME category ordering used in training so codes line up.
+    X["genre"] = pd.Categorical(X["genre"], categories=GENRE_OPTIONS)
+    return X
 
 
 def predict(features: FilmFeatures) -> PredictionResponse:
-    """Return a stubbed prediction. Replaced by the real XGBoost model on Day 3.
+    """Predict a box-office tier and explain the drivers with SHAP values."""
+    X = _to_frame(features)
+    dmatrix = xgb.DMatrix(X, enable_categorical=True)
 
-    The stub uses a few obvious heuristics purely so the UI has realistic-shaped
-    data to render. It is NOT a real model and makes no accuracy claim.
-    """
-    # Toy scoring: bigger budget, more star power, and franchise status nudge up.
-    score = 0.0
-    score += min(features.budget_usd / 200_000_000, 1.0) * 2.0
-    score += (features.lead_star_power - 3) * 0.5
-    score += 1.0 if features.is_franchise else 0.0
-    # Summer (May-Jul) and holiday (Nov-Dec) windows help.
-    if features.release_month in (5, 6, 7, 11, 12):
-        score += 0.5
+    # Probabilities for the 4 tiers (multi:softprob) -> shape (1, 4).
+    probs = _booster.predict(dmatrix)[0]
+    pred_idx = int(probs.argmax())
+    tier = Tier(TIERS[pred_idx])
+    probabilities = {TIERS[i]: round(float(probs[i]), 3) for i in range(len(TIERS))}
+    confidence = round(float(probs[pred_idx]), 3)
 
-    if score >= 2.5:
-        tier = Tier.BLOCKBUSTER
-    elif score >= 1.5:
-        tier = Tier.HIT
-    elif score >= 0.5:
-        tier = Tier.MODERATE
-    else:
-        tier = Tier.FLOP
+    # SHAP contributions toward the PREDICTED class. For multiclass, shape is
+    # (1, n_class, n_features + 1); the last column is the bias term.
+    contribs = _booster.predict(dmatrix, pred_contribs=True)
+    class_contribs = contribs[0][pred_idx]  # (n_features + 1,)
 
-    # Fabricate a probability distribution peaked on the chosen tier.
-    order = [Tier.FLOP, Tier.MODERATE, Tier.HIT, Tier.BLOCKBUSTER]
-    idx = order.index(tier)
-    raw = [1.0 / (1 + abs(i - idx)) for i in range(4)]
-    total = sum(raw)
-    probabilities = {t.value: round(p / total, 3) for t, p in zip(order, raw)}
-    confidence = probabilities[tier.value]
-
-    factors = [
-        FactorContribution(feature="Budget", contribution=round(min(features.budget_usd / 200_000_000, 1.0) * 2.0, 2)),
-        FactorContribution(feature="Star power", contribution=round((features.lead_star_power - 3) * 0.5, 2)),
-        FactorContribution(feature="Franchise", contribution=1.0 if features.is_franchise else 0.0),
-        FactorContribution(feature="Release timing", contribution=0.5 if features.release_month in (5, 6, 7, 11, 12) else -0.2),
-    ]
+    factors = []
+    for i, feat in enumerate(FEATURES):
+        if feat not in _FACTOR_LABELS:
+            continue  # skip `year` (not user-controllable)
+        factors.append(
+            FactorContribution(
+                feature=_FACTOR_LABELS[feat],
+                contribution=round(float(class_contribs[i]), 3),
+            )
+        )
+    factors.sort(key=lambda f: abs(f.contribution), reverse=True)
 
     return PredictionResponse(
         tier=tier,
         confidence=confidence,
         probabilities=probabilities,
         factors=factors,
-        interpretation="",  # Filled in by the interpreter seam.
+        interpretation="",  # filled by the interpreter seam
         model_version=MODEL_VERSION,
     )

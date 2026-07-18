@@ -11,13 +11,14 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
-# ---- Data & model artifacts (large / regenerable) ----
+# ---- Raw/intermediate data (large / regenerable) ----
 model/data/*.csv
 model/data/*.zip
 model/data/*.json
-model/artifacts/*.joblib
-model/artifacts/*.json
-!model/artifacts/.gitkeep
+
+# NOTE: backend/artifacts/ (trained model + metadata) is INTENTIONALLY committed
+# so the Render backend can serve the model. Those files are small and required
+# at runtime, so they are not ignored.
 
 # ---- OS / editor ----
 .DS_Store

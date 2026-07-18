@@ -12,8 +12,12 @@ Endpoints:
 
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load backend/.env (ANTHROPIC_API_KEY, ALLOWED_ORIGINS) before anything reads it.
+load_dotenv()
 
 from app import interpreter, predictor
 from app.schemas import FilmFeatures, PredictionResponse
@@ -41,6 +45,22 @@ app.add_middleware(
 def health() -> dict:
     """Liveness check. Returns ok + which model version is currently serving."""
     return {"status": "ok", "model_version": predictor.MODEL_VERSION}
+
+
+@app.get("/api/meta")
+def meta() -> dict:
+    """Model metadata for the frontend: the exact genres the model knows, the
+    tier definitions, and honest accuracy numbers. The frontend reads this so its
+    dropdowns can never drift out of sync with what the model was trained on.
+    """
+    return {
+        "genres": predictor.GENRE_OPTIONS,
+        "tiers": predictor.TIERS,
+        "tier_cutoffs_usd": predictor.META["tier_cutoffs_usd"],
+        "test_accuracy": predictor.META["test_accuracy"],
+        "within_one_tier_accuracy": predictor.META.get("within_one_tier_accuracy"),
+        "model_version": predictor.MODEL_VERSION,
+    }
 
 
 @app.post("/api/predict", response_model=PredictionResponse)

@@ -11,6 +11,12 @@ export async function checkHealth() {
   return res.json();
 }
 
+export async function getMeta() {
+  const res = await fetch(`${API_BASE}/api/meta`);
+  if (!res.ok) throw new Error(`Meta fetch failed: ${res.status}`);
+  return res.json();
+}
+
 export async function predict(features) {
   const res = await fetch(`${API_BASE}/api/predict`, {
     method: "POST",
