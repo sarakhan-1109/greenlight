@@ -22,9 +22,11 @@ before a single frame is shot.
    fail in reality — designing against it is the headline decision here.
 
 2. **ML predicts, the LLM only explains.** An XGBoost model produces the tier
-   and the per-feature contributions. A separate LLM layer (Anthropic Claude)
+   and the per-feature contributions. A separate LLM layer (Google Gemini)
    takes that finished output and writes a plain-English "analyst's note." The
-   language model never makes the prediction.
+   language model never makes the prediction. This layer is an isolated,
+   swappable module — the project moved from Anthropic Claude to Gemini's free
+   tier with a one-file change.
 
 3. **Framed as a decision, not an exam.** The tool answers a real question — *is
    this a smart commercial bet?* — not "can I hit a leaderboard number."
@@ -42,7 +44,7 @@ before a single frame is shot.
                                         │  └─────┬──────┘  │
                                         │        │ output  │
                                         │  ┌─────▼──────┐  │
-                                        │  │ Claude     │  │ ← explains it (only)
+                                        │  │ Gemini     │  │ ← explains it (only)
                                         │  │ interpreter│  │
                                         │  └────────────┘  │
                                         └──────────────────┘
@@ -56,7 +58,7 @@ before a single frame is shot.
 | Model     | XGBoost (single gradient-boosted tree model) |
 | Backend   | FastAPI (Python)                    |
 | Frontend  | React (Vite), single page           |
-| LLM       | Anthropic Claude (interpretation only) |
+| LLM       | Google Gemini (interpretation only, free tier) |
 | Deploy    | Vercel (frontend) + Render (backend)|
 
 No database, no auth — Greenlight is a stateless predictor.

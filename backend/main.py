@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Load backend/.env (ANTHROPIC_API_KEY, ALLOWED_ORIGINS) before anything reads it.
+# Load backend/.env (GEMINI_API_KEY, ALLOWED_ORIGINS) before anything reads it.
 load_dotenv()
 
 from app import interpreter, predictor

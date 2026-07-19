@@ -1,22 +1,26 @@
 """
-Interpretation seam — the LLM layer (Anthropic Claude).
+Interpretation seam — the LLM layer (Google Gemini).
 
 CRITICAL SEPARATION: the LLM does NOT predict. predictor.py (XGBoost) produces
 the tier, confidence, and SHAP factor contributions. This module hands that
-FINISHED output to Claude and asks only for a plain-English "analyst's note."
+FINISHED output to Gemini and asks only for a plain-English "analyst's note."
 
-Robustness: if no ANTHROPIC_API_KEY is set, or the API call fails, we fall back
-to a deterministic template so the endpoint never errors. The prediction is
-always the model's; the note is presentation only.
+This file is the single place the LLM provider lives. The rest of the app talks
+only to `interpret()`, so swapping providers (this project started on Anthropic
+Claude and moved to Gemini's free tier) touches nothing else — a clean seam.
+
+Robustness: if no GEMINI_API_KEY is set, or the API call fails, we fall back to
+a deterministic template so the endpoint never errors. The prediction is always
+the model's; the note is presentation only.
 """
 
 import os
 
 from .schemas import FilmFeatures, PredictionResponse
 
-# Small, fast, cheap — the note is only ~2-3 sentences. Haiku keeps latency low
-# in the live demo; swap to a larger model here if richer prose is ever wanted.
-_MODEL = "claude-haiku-4-5"
+# Small, fast, free-tier — the note is only ~2-3 sentences. "flash-latest" is an
+# alias that stays on a current, free-tier-eligible Flash model.
+_MODEL = "gemini-flash-latest"
 
 _SYSTEM = (
     "You are a film-industry box-office analyst. A machine-learning model has "
@@ -66,22 +70,31 @@ def _build_user_prompt(features: FilmFeatures, prediction: PredictionResponse) -
 
 def interpret(features: FilmFeatures, prediction: PredictionResponse) -> str:
     """Return a plain-English note explaining the model's output."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return _template_note(features, prediction)
 
     try:
         # Imported lazily so the app runs without the SDK/key during dev.
-        from anthropic import Anthropic
+        from google import genai
+        from google.genai import types
 
-        client = Anthropic(api_key=api_key)
-        message = client.messages.create(
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
             model=_MODEL,
-            max_tokens=200,
-            system=_SYSTEM,
-            messages=[{"role": "user", "content": _build_user_prompt(features, prediction)}],
+            contents=_build_user_prompt(features, prediction),
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM,
+                max_output_tokens=256,
+                temperature=0.4,
+                # flash-latest is a "thinking" model; for a 2-sentence note we
+                # don't want reasoning eating the token budget (it truncated the
+                # visible text). thinking_budget=0 disables it entirely.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
         )
-        return message.content[0].text.strip()
+        text = (response.text or "").strip()
+        return text or _template_note(features, prediction)
     except Exception:
         # Never let the explanation layer break the prediction endpoint.
         return _template_note(features, prediction)
