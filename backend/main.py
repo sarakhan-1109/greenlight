@@ -41,6 +41,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root() -> dict:
+    """Basic API info at the root so probes to '/' get a clean 200, not a 404."""
+    return {
+        "service": "Greenlight API",
+        "docs": "/docs",
+        "endpoints": ["/health", "/api/meta", "/api/predict"],
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     """Liveness check. Returns ok + which model version is currently serving."""

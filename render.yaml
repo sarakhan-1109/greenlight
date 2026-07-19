@@ -10,10 +10,13 @@ services:
     buildCommand: pip install -r requirements.txt
     # Render injects $PORT; uvicorn must bind to it and to 0.0.0.0.
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Tell Render exactly how to verify health + keep routing on the live
+    # instance (without this, free-tier routing can intermittently 404).
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.7"
       - key: ALLOWED_ORIGINS
         sync: false   # set to the Vercel URL after the frontend deploys
-      - key: ANTHROPIC_API_KEY
-        sync: false   # added on Day 4 for the interpretation layer
+      - key: GEMINI_API_KEY
+        sync: false   # free Gemini key for the interpretation layer
