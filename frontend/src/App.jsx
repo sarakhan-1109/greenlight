@@ -61,7 +61,8 @@ export default function App() {
   return (
     <div className="page">
       <header className="header">
-        <h1>🎬 Greenlight</h1>
+        <p className="kicker">Pre-release box-office intelligence</p>
+        <h1>Greenlight</h1>
         <p className="tagline">
           Most films lose money. Greenlight estimates a project's box-office tier
           from pre-release signals alone — budget, cast, timing, franchise — so you
@@ -76,7 +77,7 @@ export default function App() {
         <h2>The film</h2>
         <div className="grid">
           <label>
-            Production budget
+            <span className="field-label">Production budget</span>
             <span className="budget-val">${Number(form.budget_usd).toLocaleString()}</span>
             <input
               type="range" min="1000000" max="400000000" step="1000000"
@@ -86,14 +87,14 @@ export default function App() {
           </label>
 
           <label>
-            Primary genre
+            <span className="field-label">Primary genre</span>
             <select value={form.genre} onChange={(e) => update("genre", e.target.value)}>
               {genres.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
           </label>
 
           <label>
-            Lead-actor star power
+            <span className="field-label">Lead-actor star power</span>
             <select value={form.lead_star_power} onChange={(e) => update("lead_star_power", Number(e.target.value))}>
               <option value={1}>1 — Unknown</option>
               <option value={2}>2 — Emerging</option>
@@ -104,14 +105,14 @@ export default function App() {
           </label>
 
           <label>
-            Release month
+            <span className="field-label">Release month</span>
             <select value={form.release_month} onChange={(e) => update("release_month", Number(e.target.value))}>
               {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
           </label>
 
           <label>
-            Runtime
+            <span className="field-label">Runtime</span>
             <span className="budget-val">{form.runtime_min} min</span>
             <input
               type="range" min="70" max="210" step="5"
@@ -138,10 +139,12 @@ export default function App() {
       {result && (
         <section className="panel result">
           <div className="verdict">
+            <span className="verdict-kicker">Projected tier</span>
             <span className={`tier tier-${result.tier.toLowerCase()}`}>{result.tier}</span>
-            <div className="verdict-meta">
-              <p className="blurb">{TIER_BLURB[result.tier]}</p>
-              <p className="confidence">Model confidence: <strong>{Math.round(result.confidence * 100)}%</strong></p>
+            <p className="blurb">{TIER_BLURB[result.tier]}</p>
+            <p className="confidence">Model confidence — {Math.round(result.confidence * 100)}%</p>
+            <div className="conf-meter">
+              <div className="conf-fill" style={{ width: `${Math.round(result.confidence * 100)}%` }} />
             </div>
           </div>
 

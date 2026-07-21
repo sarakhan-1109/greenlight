@@ -1,24 +1,55 @@
 :root {
-  --bg: #0e1117;
-  --panel: #171b22;
-  --panel-2: #1f2530;
-  --border: #2a3240;
-  --text: #e6e9ef;
-  --muted: #9aa4b2;
-  --accent: #21c07a;
-  --accent-dim: #178a58;
-  --danger: #e5534b;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Cinematic editorial palette — warm near-black "screening room" + box-office gold. */
+  --bg: #0c0a09;
+  --bg-tint: #17110b;
+  --panel: #141110;
+  --panel-2: #1d1815;
+  --border: #2c2420;
+  --border-soft: #221c18;
+  --text: #f4efe6;
+  --muted: #a89e90;
+  --faint: #6f665c;
+  --gold: #e0b15e;
+  --gold-soft: #c9974a;
+  --gold-dim: #7a5c28;
+  --danger: #c85a4c;
+
+  /* Tier accents: rust -> bronze -> sage -> gold */
+  --flop: #cd6151;
+  --moderate: #cf9a52;
+  --hit: #7bae82;
+  --blockbuster: #e6b95f;
+
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--sans);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--bg-tint) 0%, transparent 55%),
+    var(--bg);
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
 }
 
-h1, h2, h3 { margin: 0 0 0.4em; font-weight: 700; }
+/* Faint film grain overlaid on everything (very subtle). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+h1, h2, h3 { margin: 0; font-weight: 400; }
