@@ -11,6 +11,8 @@ result.
 - Live application: https://greenlight-jet.vercel.app
 - Source code: https://github.com/sarakhan-1109/greenlight
 
+![Greenlight application](docs/screenshot.png)
+
 ## Overview
 
 Studios decide whether to fund a film, known in
