@@ -11,7 +11,8 @@ numpy==2.2.2
 joblib==1.4.2
 
 # --- LLM interpretation layer (Google Gemini, free tier) ---
-google-genai>=1.0.0
+# Pinned to a verified version so local and the deployed backend behave the same.
+google-genai==2.12.1
 
 # --- Config ---
 python-dotenv==1.0.1

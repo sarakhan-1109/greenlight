@@ -85,16 +85,21 @@ def interpret(features: FilmFeatures, prediction: PredictionResponse) -> str:
             contents=_build_user_prompt(features, prediction),
             config=types.GenerateContentConfig(
                 system_instruction=_SYSTEM,
-                max_output_tokens=256,
+                # This model "thinks" internally before answering, and that
+                # thinking cannot be reliably switched off. Rather than fight it,
+                # we give a large token budget so the internal reasoning AND the
+                # short visible note both fit and the note is never truncated.
+                max_output_tokens=2048,
                 temperature=0.4,
-                # flash-latest is a "thinking" model; for a 2-sentence note we
-                # don't want reasoning eating the token budget (it truncated the
-                # visible text). thinking_budget=0 disables it entirely.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         text = (response.text or "").strip()
-        return text or _template_note(features, prediction)
+        # Only use the note if it is a complete sentence. If it came back empty or
+        # truncated (e.g. the model spent its budget "thinking"), fall back to the
+        # deterministic template so the user never sees a cut-off fragment.
+        if text and text[-1] in ".!?":
+            return text
+        return _template_note(features, prediction)
     except Exception:
         # Never let the explanation layer break the prediction endpoint.
         return _template_note(features, prediction)
